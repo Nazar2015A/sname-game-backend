@@ -11,29 +11,53 @@ app.use(cors());
 app.post("/adduser", (req, res) => {
   const username = req.body["player_name"];
   const score = req.body["score"];
-  console.log(username);
-  const insertUser = `INSERT INTO game_records (player_name, score) VALUES ('${username}', '${score}');`;
-  pool
-    .query(insertUser)
-    .then((response) => {
-      console.log("SAVED");
-      console.log(response);
-      res.status(200).send("Data added successfully");
-    })
-    .catch((error) => {
-      console.error(error);
-      res.status(500).send("Error occurred");
-    });
-});
-app.get("/adduser", (req, res) => {
   pool.query(
-    "SELECT * FROM game_records ORDER BY score DESC",
+    "SELECT * FROM game_records WHERE player_name = $1",
+    [username],
     (error, results) => {
       if (error) {
-        console.error("Bad request: ", error);
+        res.status(500).send("Error occurred");
+      } else {
+        if (results.rows.length === 0) {
+          const insertUser = `INSERT INTO game_records (player_name, score) VALUES ($1, $2);`;
+          pool.query(insertUser, [username, score], (error, response) => {
+            if (error) {
+              res.status(500).send("Error occurred");
+            } else {
+              res.status(200).send("Data added successfully");
+            }
+          });
+        } else {
+          const existingScore = results.rows[0].score;
+          if (score > existingScore) {
+            const updateQuery = `UPDATE game_records SET score = $1 WHERE player_name = $2;`;
+            pool.query(updateQuery, [score, username], (error, response) => {
+              if (error) {
+                res.status(500).send("Error occurred");
+              } else {
+                res.status(200).send("Data updated successfully");
+              }
+            });
+          } else {
+            res.status(200).send("No update needed");
+          }
+        }
+      }
+    }
+  );
+});
+
+app.delete("/deleteuser/:id", (req, res) => {
+  const id = req.params.id;
+  pool.query(
+    "DELETE FROM game_records WHERE id = $1",
+    [id],
+    (error, results) => {
+      if (error) {
+        console.error("Error deleting record: ", error);
         res.status(500).send("Error");
       } else {
-        res.json(results.rows);
+        res.status(200).send(`Record with id ${id} deleted successfully.`);
       }
     }
   );
