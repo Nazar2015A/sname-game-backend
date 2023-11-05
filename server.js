@@ -8,6 +8,20 @@ const port = 4000;
 app.use(express.json());
 app.use(cors());
 
+app.get("/adduser", (req, res) => {
+  pool.query(
+    "SELECT * FROM game_records ORDER BY score DESC",
+    (error, results) => {
+      if (error) {
+        console.error("Bad request: ", error);
+        res.status(500).send("Error");
+      } else {
+        res.json(results.rows);
+      }
+    }
+  );
+});
+
 app.post("/adduser", (req, res) => {
   const username = req.body["player_name"];
   const score = req.body["score"];
